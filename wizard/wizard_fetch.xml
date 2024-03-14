@@ -43,7 +43,7 @@
          <menuitem
                 id = "shopify_wizard_product"
                 name="Fetch shopify product"
-                parent="fetch_data_root"
+                parent="s_shopify_root1"
                 action="shopify_fetch_product_wizard_act_window"
                 sequence="33"
         />

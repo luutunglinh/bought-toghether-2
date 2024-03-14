@@ -75,7 +75,7 @@ export default {
         jsonrpc: "2.0",
         params: {
           shop: window.Shopify.shop.split(".myshopify.com")[0],
-          shop_id: 3,
+          shop_id: 2,
           type: "recommendation",
         },
       })
@@ -99,6 +99,7 @@ export default {
       })
       .then((response) => {
         let data = JSON.parse(response.data.result);
+		console.log('data',data);
         this.title_color = data.title_color;
         this.title_font_size = data.title_font_size;
         this.widget_title = data.widget_title;
@@ -160,7 +161,7 @@ export default {
       } catch (error) {
         console.error("Error adding to cart:", error);
     }
-  }
+  },
 }
 }
 </script>

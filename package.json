@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@ant-design/icons": "^5.3.1",
+    "@ant-design/icons-vue": "^7.0.1"
+  }
+}

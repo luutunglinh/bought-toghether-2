@@ -4,6 +4,7 @@ from odoo.http import request, route, Response
 import json
 import shopify
 import re
+from odoo.exceptions import UserError
 
 
 class SampleApp(http.Controller):
@@ -11,15 +12,25 @@ class SampleApp(http.Controller):
                  '/dashboard/store/<string:name>'], auth='user', type='http')
     def dashboard_bought_together(self, **kwargs):
         current_uid = request.env.context.get('uid')
-        cur_user = request.env['res.users'].browse(current_uid)
-        print(cur_user)
-        model_token = request.env['access.token'].search([])
-        widget_model = request.env['bought.widget']
+        cur_user = request.env['res.users'].sudo().browse(current_uid)
+        print('id', cur_user.id)
+        model_token = request.env['access.token'].sudo().search([('user', '=', cur_user.id)])
+        widget_model = request.env['bought.widget'].sudo()
         stores = []
 
         for item in model_token:
-            print(item.id)
             wgs = widget_model.sudo().search([('shop_id', '=', item.id)])
+            # if not item.user:
+            #     item.user = cur_user.id
+            #     included = sum(len(wg.product_ids) for wg in wgs)
+            #     stores.append({
+            #         'key': item.shop_url.split(".myshopify.com")[0],
+            #         'name': item.name,
+            #         'product_included': included,
+            #         'status': item.status,
+            #     })
+            # else:
+            print(item.id)
             included = 0
             for wg in wgs:
                 included += len(wg.product_ids)
@@ -29,7 +40,8 @@ class SampleApp(http.Controller):
                 'product_included': included,
                 'status': item.status
             })
-            print(stores)
+        print(stores)
+
         value = {
             'user_name': cur_user.name,
             "id": cur_user.id,
@@ -39,15 +51,56 @@ class SampleApp(http.Controller):
 
         return request.render('sample_app.sample_app_template', {'app_settings': json.dumps(value)})
 
+
+# xử lý store khi dang nhap
+    @http.route('/sample-app/store-begin', type='json', auth='user')
+    def add_store_begin(self, store, user_id):
+        print("store", store)
+        try:
+            stores = []
+            shop = request.env['access.token'].sudo().search([('shop_url', '=', store)])
+            if shop:
+                for item in shop:
+                    wgs = request.env['bought.widget'].sudo().search([('shop_id', '=', item.id)])
+                    if not item.user:
+                        item.user = user_id
+                        included = sum(len(wg.product_ids) for wg in wgs)
+                        stores.append({
+                            'key': item.shop_url.split(".myshopify.com")[0],
+                            'name': item.name,
+                            'product_included': included,
+                            'status': item.status,
+                        })
+                    elif item.user.id != user_id:
+                        return {"message": "User invalid with this shop"}
+                    else:
+                        included = sum(len(wg.product_ids) for wg in wgs)
+                        stores.append({
+                            'key': item.shop_url.split(".myshopify.com")[0],
+                            'name': item.name,
+                            'product_included': included,
+                            'status': item.status,
+                        })
+                return {
+                    'stores': stores,
+                    'message': 'Store is available'
+                }
+            else:
+                return {"message": "Store invalid"}
+        except Exception as e:
+            print(e)
+
+
     # store
-    @http.route('/sample-app/store-status', type='json', auth='public')
+    @http.route('/sample-app/store-status', type='json', auth='user')
     def change_store_status(self, store, status):
         shop = request.env['access.token'].sudo().search([('name', '=', store)])
         if shop:
             shop.status = status
         return shop.status
 
-    @http.route('/sample-app/get-data-store', type='json', auth="public")
+
+    @http.route('/sample-app/get-data-store', type='json', auth="user")
     def get_data_store(self, name):
         data_recommend_table = self.get_widget_products(name, 'recommendation')
         data_excluded_table = self.get_widget_products(name, 'excluded')
@@ -61,8 +114,9 @@ class SampleApp(http.Controller):
         }
         return value
 
+
     # @TODO: sửa search product
-    @http.route('/sample-app/search-product', type='json', auth="public")
+    @http.route('/sample-app/search-product', type='json', auth="user")
     def search_product(self, searchText, shop):
         model = request.env['access.token'].sudo().search([('name', '=', shop)])
         access_token = model.access_token
@@ -73,7 +127,7 @@ class SampleApp(http.Controller):
         # print(searchText, shop)
 
         # @TODO: sửa lại theo query này
-        limit = 30
+        limit = 5
         query = ('{productVariants(first: %d, query: "title:%s* status:active") '
                  '{edges {node {id displayName price compareAtPrice inventoryQuantity product {title featuredImage {url}}}}}}') % (
                     limit, searchText)
@@ -83,7 +137,7 @@ class SampleApp(http.Controller):
         if query_result['data']['productVariants']['edges']:
             for product in query_result['data']['productVariants']['edges']:
                 if not product['node']['product']['featuredImage']:
-                    product['node']['product']['featuredImage']=[{
+                    product['node']['product']['featuredImage'] = [{
                         'url': 'https:nest_scale/app_s/sample_app/static/img/no_image.png'
                     }]
         return query_result['data']['productVariants']['edges']
@@ -120,12 +174,13 @@ class SampleApp(http.Controller):
         #
         #     return json.loads(result)['data']['productVariants']['edges']
 
+
     @staticmethod
     def get_widget_products(name, type):
         data = []
         shop = request.env['access.token'].sudo().search([('name', '=', name)])
         if shop:
-            widget = request.env['bought.widget'].search([('shop_id', '=', shop.id), ('type', '=', type)])
+            widget = request.env['bought.widget'].sudo().search([('shop_id', '=', shop.id), ('type', '=', type)])
             if widget:
                 for w in widget.product_ids:
                     data.append({
@@ -138,17 +193,18 @@ class SampleApp(http.Controller):
                     })
         return data
 
+
     # @TODO: chưa convert type của price
-    @http.route("/sample-app/save-product", auth="public", type="json")
+    @http.route("/sample-app/save-product", auth="user", type="json")
     def save_product(self, shop, type, data):
         print('datadadaaad', data)
         access_token = request.env['access.token'].sudo().search([("name", '=', shop)])
         shop_id = access_token.id
         shop_product_model = request.env['shopify.product']
-        bt_widget_model = request.env['bought.widget']
+        bt_widget_model = request.env['bought.widget'].sudo()
         product_ids = []
         for item in data:
-            product = shop_product_model.search([('product_id', '=', item['key']), ('shop_id', '=', shop_id)])
+            product = shop_product_model.sudo().search([('product_id', '=', item['key']), ('shop_id', '=', shop_id)])
             if not product:
                 product = shop_product_model.sudo().create({
                     'name': item['title'],
@@ -160,7 +216,7 @@ class SampleApp(http.Controller):
                     'shop_id': shop_id,
                 })
             product_ids.append(product.id)
-        widget_data = bt_widget_model.search([('shop_id', '=', shop_id), ('type', '=', type)])
+        widget_data = bt_widget_model.sudo().search([('shop_id', '=', shop_id), ('type', '=', type)])
         if not widget_data:
             bt_widget_model.sudo().create({
                 'shop_id': shop_id,
@@ -173,11 +229,12 @@ class SampleApp(http.Controller):
             })
         return Response("success", status=200)
 
-    @http.route('/sample-app/get_widget_data', auth="public", type="json")
+
+    @http.route('/sample-app/get_widget_data', auth="user", type="json")
     def get_widget_data(self, shop, shop_id, type):
         data = []
         access_token_shop = request.env['access.token'].sudo().search([('name', '=', shop)], limit=1)
-        print("acc",access_token_shop.id)
+        print("acc", access_token_shop.id)
         bt_widget_model = request.env['bought.widget']
         widget_data = bt_widget_model.sudo().search([('shop_id', '=', access_token_shop.id), ('type', '=', type)])
         if not widget_data:
@@ -211,7 +268,8 @@ class SampleApp(http.Controller):
                 })
         return data
 
-    @http.route('/sample-app/save_customization', auth="public", type="json")
+
+    @http.route('/sample-app/save_customization', auth="user", type="json")
     def save_products_customization(self, name, data, user_id):
         print('kw', name)
         print(data)
@@ -226,7 +284,8 @@ class SampleApp(http.Controller):
                 'customization_setting': data,
             })
 
-    @http.route('/sample-app/get_customization', auth="public", type="json")
+
+    @http.route('/sample-app/get_customization', auth="user", type="json")
     def get_products_customization(self, user_id):
         print(user_id)
         customize_setting = request.env['shopify.customize'].sudo().search([("user_id", '=', user_id)])

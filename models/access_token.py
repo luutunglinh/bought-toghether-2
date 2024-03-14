@@ -15,6 +15,7 @@ class AccessToken(models.Model):
     currency = fields.Char('Currency')
     status = fields.Boolean(string='Shop Status', default=True)
     customization_setting = fields.Text(string="Customization")
+    user = fields.Many2one('res.users', string="User")
 
     @api.depends('shop_url')
     def _compute_name_shop(self):

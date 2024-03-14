@@ -70,6 +70,7 @@ export default {
 						'name': window.app_settings.store,
 					},
 					}).then(response => {
+						console.log(response);
 						this.isEnable = response.data.result.store_status
 						this.dataRecommendTable = response.data.result.dataRecommendTable
 						this.dataExcludedTable = response.data.result.dataExcludedTable

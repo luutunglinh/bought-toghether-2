@@ -60,6 +60,7 @@ body {
 	gap: 32px;
 }
 
+
 .main-comp .title {
 	color: #000;
 	font-size: 27px;
@@ -88,7 +89,24 @@ body {
     background: #FFF; 
 }
 
+.main-store-input{
+    display: flex; 
+    padding: 16px 20px;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #E2E2E2;
+    background: #FFF; 
+}
 
+.main-store-input > .ant-form{
+	display: contents;
+}
+
+
+.main-store-input > .ant-form >
+.ant-form-item-with-help {
+	margin-bottom: -7px;
+}
 
 
 input[type="color"] {

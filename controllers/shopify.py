@@ -29,6 +29,8 @@ class ShopifyAPI(http.Controller):
     @http.route('/test-shopify/finalize', auth="public", type="http")
     def shopify_finalize(self, **kwargs):
         # setup session
+        user = request.uid
+        print('user',user)
 
         api_key = request.env['ir.config_parameter'].sudo().get_param('sample_app.shopify_api_key')
         shared_secret = request.env['ir.config_parameter'].sudo().get_param('sample_app.shopify_secret_key')
@@ -71,7 +73,7 @@ class ShopifyAPI(http.Controller):
                                    private_metafield_namespaces: {wh.private_metafield_namespaces}
                               ''')
         model = request.env['access.token']
-        record = model.sudo().search([('shop_url', '=', shop_url)])
+        record = model.sudo().search([('shop_url', '=', shop_url)], limit=1)
 
         if not record:
             shop = shopify.Shop.current()
@@ -90,7 +92,7 @@ class ShopifyAPI(http.Controller):
             record.sudo().write({
                 'access_token': access_token
             })
-        return request.redirect('/')
+        return request.redirect('/dashboard/store')
 
     @staticmethod
     def create_hook(self, address, shop_url, topic, events):
