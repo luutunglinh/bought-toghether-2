@@ -19,7 +19,7 @@
               <div class="input-title">User Name</div>
               <Input size="small" v-model:value="computedUserName" disabled />
               <div class="input-title">Shop url</div>
-              <Input size="small" v-model:value="userData.text_shop"  />
+              <Input size="small" v-model:value="userData.text_shop" />
             </Modal>
           </MenuItem>
           <MenuItem>
@@ -32,7 +32,14 @@
 </template>
 <script>
 import axios from "axios";
-import { Dropdown, Menu, MenuItem, Modal, Input, notification } from "ant-design-vue";
+import {
+  Dropdown,
+  Menu,
+  MenuItem,
+  Modal,
+  Input,
+  notification,
+} from "ant-design-vue";
 export default {
   name: "Navbar",
   components: {
@@ -41,20 +48,23 @@ export default {
     MenuItem,
     Modal,
     Input,
-	notification
+    notification,
   },
   props: {
     user_image: String,
   },
   async mounted() {
-	 const storedDataShop = JSON.parse(localStorage.getItem("data_Shop"));
-	if (storedDataShop){
-		this.userData.text_shop = storedDataShop.stores[0].name + ".myshopify.com"
-		console.log(this.userData.text_shop);
-		this.searchShop()
-	}else {
-		console.log("Ban chua co shop dang ki");
-	}
+    console.log(window.app_settings);
+    // const storedDataShop = JSON.parse(localStorage.getItem("data_Shop"));
+    const storedDataShop = window.app_settings.stores;
+    console.log(typeof storedDataShop);
+    if (storedDataShop.length > 0) {
+      this.userData.text_shop = window.app_settings.stores[0].name + ".myshopify.com";
+      console.log(this.userData.text_shop);
+      this.searchShop();
+    } else {
+      console.log("Ban chua co shop dang ki");
+    }
   },
   data() {
     return {
@@ -66,7 +76,7 @@ export default {
       },
       typeData: true,
       tempShop: "",
-	  data: [],
+      data: [],
     };
   },
   computed: {
@@ -89,8 +99,8 @@ export default {
       localStorage.removeItem("isStore");
       localStorage.removeItem("data_Shop");
       const baseURL = window.location.origin;
-      //window.location.href = "/web/session/logout";
-      window.location.href= baseURL +"/web/login?redirect=http%3A%2F%2Fodoo.website%2Fdashboard%2Fstore"
+      window.location.href = "/web/session/logout";
+      //   window.location.href= baseURL +"/web/login?redirect=http%3A%2F%2Fodoo.website%2Fdashboard%2Fstore"
     },
     showModal() {
       this.visible = true;
@@ -102,12 +112,8 @@ export default {
     },
     async handelOk() {
       this.visible = false;
-	  console.log(this.userData.text_shop);
-	  this.searchShop()
-    },
-	async searchShop() {
-		let isLoad = false
-		try {
+      console.log(this.userData.text_shop);
+      try {
         const url = "/sample-app/store-begin";
         await axios
           .post(url, {
@@ -119,26 +125,63 @@ export default {
           })
           .then((response) => {
             console.log(response.data.result);
-			if (response.data.result.stores && typeof(response.data.result.stores) !== "undefined"){
-				this.data = response.data.result
-				localStorage.setItem("data_Shop", JSON.stringify(this.data));
-				notification.success({
+            if (
+              response.data.result.stores &&
+              typeof response.data.result.stores !== "undefined"
+            ) {
+              this.data = response.data.result;
+              localStorage.setItem("data_Shop", JSON.stringify(this.data));
+              notification.success({
                 message: "Success",
                 description: response.data.result.message,
-
               });
-			} else {
-				notification.error({
-					message: "Error",
-					description: response.data.result.message,
-				});
-			}
+              window.location.reload();
+            } else {
+              notification.error({
+                message: "Error",
+                description: response.data.result.message,
+              });
+            }
           });
       } catch (error) {
         console.log("Error:", error);
-		
       }
-	},
+    },
+    async searchShop() {
+      let isLoad = false;
+      try {
+        const url = "/sample-app/store-begin";
+        await axios
+          .post(url, {
+            jsonrpc: "2.0",
+            params: {
+              store: this.userData.text_shop,
+              user_id: window.app_settings.id,
+            },
+          })
+          .then((response) => {
+            console.log(response.data.result);
+            if (
+              response.data.result.stores &&
+              typeof response.data.result.stores !== "undefined"
+            ) {
+              this.data = response.data.result;
+              localStorage.setItem("data_Shop", JSON.stringify(this.data));
+              notification.success({
+                message: "Success",
+                description: response.data.result.message,
+              });
+            } else {
+              notification.error({
+                message: "Error",
+                description: response.data.result.message,
+              });
+            }
+          });
+      } catch (error) {
+        console.log("Error:", error);
+      }
+    },
   },
 };
 </script>
